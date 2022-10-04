@@ -1,22 +1,28 @@
-<!--
-title: .'HTTP GET and POST'
-description: 'Boilerplate code for Golang with GET and POST example'
-framework: v1
-platform: AWS
-language: Go
-priority: 10
-authorLink: 'https://github.com/pramonow'
-authorName: 'Pramono Winata'
-authorAvatar: 'https://avatars0.githubusercontent.com/u/28787057?v=4&s=140'
--->
+# forta-bot-db
 
-# Serverless-golang http Get and Post Example
-Serverless boilerplate code for golang with GET and POST example
+This allows a bot to store files over a HTTP request.
 
-This example is using AWS Request and Response Proxy Model, provided by AWS itself.
-If you want to test any changes don't forget to run `make` inside the service directory.
+## APIs
 
-There are three endpoint provided:
-1. GET endpoint with name parameter (/get/{name})
-2. GET endpoint with query string parameter (getQ?name=$name)
-3. POST endpoint with name in the body (/post - with JSON body {"name":$name}
+These are the following APIs
+```
+GET https://{host}/database/{key}
+PUT https://{host}/database/{key}   (body = payload)
+DELETE https://{host}/database/{key}
+```
+
+Files are stored in S3 under the following key format
+```
+{scannerId}/{botId}/{key}
+```
+
+## Authentication
+
+Bots should use the JWT defined here:
+https://docs.forta.network/en/latest/jwt-auth/
+
+## Deploy
+
+```
+make deploy-research
+```
