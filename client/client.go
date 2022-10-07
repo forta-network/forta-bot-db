@@ -8,13 +8,18 @@ import (
 	"net/http"
 )
 
-const urlPattern = "https://research.forta.network/database/%s"
+const urlPattern = "https://research.forta.network/database/%s/%s"
 
 type Client interface {
-	Get(objID string) ([]byte, error)
-	Put(objID string, payload []byte) error
-	Del(objID string) error
+	Get(scope Scope, objID string) ([]byte, error)
+	Put(scope Scope, objID string, payload []byte) error
+	Del(scope Scope, objID string) error
 }
+
+type Scope string
+
+var ScopeBot Scope = "bot"
+var ScopeScanner Scope = "scanner"
 
 type client struct {
 	botID      string
@@ -22,8 +27,8 @@ type client struct {
 	passphrase string
 }
 
-func (c *client) Put(objID string, payload []byte) error {
-	req, err := http.NewRequest("PUT", fmt.Sprintf(urlPattern, objID), bytes.NewReader(payload))
+func (c *client) Put(scope Scope, objID string, payload []byte) error {
+	req, err := http.NewRequest("PUT", fmt.Sprintf(urlPattern, scope, objID), bytes.NewReader(payload))
 	if err != nil {
 		return err
 	}
@@ -42,8 +47,8 @@ func (c *client) Put(objID string, payload []byte) error {
 	return nil
 }
 
-func (c *client) Del(objID string) error {
-	req, err := http.NewRequest("DELETE", fmt.Sprintf(urlPattern, objID), nil)
+func (c *client) Del(scope Scope, objID string) error {
+	req, err := http.NewRequest("DELETE", fmt.Sprintf(urlPattern, scope, objID), nil)
 	if err != nil {
 		return err
 	}
@@ -62,8 +67,8 @@ func (c *client) Del(objID string) error {
 	return nil
 }
 
-func (c *client) Get(objID string) ([]byte, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf(urlPattern, objID), nil)
+func (c *client) Get(scope Scope, objID string) ([]byte, error) {
+	req, err := http.NewRequest("GET", fmt.Sprintf(urlPattern, scope, objID), nil)
 	if err != nil {
 		return nil, err
 	}

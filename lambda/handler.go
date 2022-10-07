@@ -27,7 +27,21 @@ func getObjKey(hc *auth.HandlerCtx, r events.APIGatewayV2HTTPRequest) (string, e
 	if !ok {
 		return "", errors.New("no key defined")
 	}
-	key := fmt.Sprintf("%s/%s/%s", hc.BotID, hc.Scanner, pathKey)
+	scope, ok := r.PathParameters["scope"]
+	if !ok {
+		return "", errors.New("no scope defined")
+	}
+
+	var key string
+	switch scope {
+	case "scanner":
+		key = fmt.Sprintf("%s/%s/%s", hc.BotID, hc.Scanner, pathKey)
+	case "bot":
+		key = fmt.Sprintf("%s/%s", hc.BotID, pathKey)
+	default:
+		return "", errors.New("scope must be scanner or bot")
+	}
+
 	hc.Logger = hc.Logger.WithFields(log.Fields{
 		"bucket": bucket,
 		"key":    key,

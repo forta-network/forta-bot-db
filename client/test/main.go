@@ -16,12 +16,13 @@ func main() {
 
 	key := "test"
 	payload := "payload"
+	scope := client.ScopeBot
 
-	if err := c.Put(key, []byte(payload)); err != nil {
+	if err := c.Put(scope, key, []byte(payload)); err != nil {
 		panic(err)
 	}
 
-	resp, err := c.Get(key)
+	resp, err := c.Get(scope, key)
 	if err != nil {
 		panic(err)
 	}
@@ -29,7 +30,7 @@ func main() {
 		panic("response != payload")
 	}
 
-	if err := c.Del(key); err != nil {
+	if err := c.Del(scope, key); err != nil {
 		panic(err)
 	}
 

@@ -77,16 +77,16 @@ functions:
     events:
       - httpApi:
           method: POST
-          path: /database/{key}
+          path: /database/{scope}/{key}
       - httpApi:
           method: PUT
-          path: /database/{key}
+          path: /database/{scope}/{key}
       - httpApi:
           method: GET
-          path: /database/{key}
+          path: /database/{scope}/{key}
       - httpApi:
           method: DELETE
-          path: /database/{key}
+          path: /database/{scope}/{key}
 
 
 #    Define function environment variables here
