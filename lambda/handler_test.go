@@ -34,22 +34,35 @@ func TestObjectKey(t *testing.T) {
 		Scanner     string
 		BotId       string
 		ExpectedKey string
+		PathParams  map[string]string
 	}
 	tests := []keyTest{
 		{
-			Path:        "/object/key",
 			Scanner:     "scanner",
 			BotId:       "botId",
 			ExpectedKey: "botId/scanner/key",
+			PathParams: map[string]string{
+				"key": "key",
+			},
+		},
+		{
+			Scanner:     "scanner",
+			BotId:       "botId",
+			ExpectedKey: "botId/key",
+			PathParams: map[string]string{
+				"key":   "key",
+				"scope": "bot",
+			},
 		},
 	}
 	for _, test := range tests {
-		key, err := getObjKey(testCtx(t, test.BotId, test.Scanner), events.APIGatewayProxyRequest{
-			HTTPMethod: "GET",
-			Path:       "/object/{id}",
-			PathParameters: map[string]string{
-				"key": "key",
+		key, err := getObjKey(testCtx(t, test.BotId, test.Scanner), events.APIGatewayV2HTTPRequest{
+			RequestContext: events.APIGatewayV2HTTPRequestContext{
+				HTTP: events.APIGatewayV2HTTPRequestContextHTTPDescription{
+					Method: "GET",
+				},
 			},
+			PathParameters: test.PathParams,
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, test.ExpectedKey, key)
@@ -69,9 +82,12 @@ func TestRoute(t *testing.T) {
 		Store:   s,
 	}
 
-	r := events.APIGatewayProxyRequest{
-		HTTPMethod: "GET",
-		Path:       "/object/{id}",
+	r := events.APIGatewayV2HTTPRequest{
+		RequestContext: events.APIGatewayV2HTTPRequestContext{
+			HTTP: events.APIGatewayV2HTTPRequestContextHTTPDescription{
+				Method: "GET",
+			},
+		},
 		PathParameters: map[string]string{
 			"key": "key",
 		},

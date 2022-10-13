@@ -22,6 +22,11 @@ import (
 
 var bucket = os.Getenv("bucket")
 
+const ScopeScanner = "scanner"
+const ScopeBot = "bot"
+
+const DefaultScope = ScopeScanner
+
 func getObjKey(hc *auth.HandlerCtx, r events.APIGatewayV2HTTPRequest) (string, error) {
 	pathKey, ok := r.PathParameters["key"]
 	if !ok {
@@ -29,14 +34,14 @@ func getObjKey(hc *auth.HandlerCtx, r events.APIGatewayV2HTTPRequest) (string, e
 	}
 	scope, ok := r.PathParameters["scope"]
 	if !ok {
-		return "", errors.New("no scope defined")
+		scope = DefaultScope
 	}
 
 	var key string
 	switch scope {
-	case "scanner":
+	case ScopeScanner:
 		key = fmt.Sprintf("%s/%s/%s", hc.BotID, hc.Scanner, pathKey)
-	case "bot":
+	case ScopeBot:
 		key = fmt.Sprintf("%s/%s", hc.BotID, pathKey)
 	default:
 		return "", errors.New("scope must be scanner or bot")
@@ -46,7 +51,7 @@ func getObjKey(hc *auth.HandlerCtx, r events.APIGatewayV2HTTPRequest) (string, e
 		"bucket": bucket,
 		"key":    key,
 	})
-	return pathKey, nil
+	return key, nil
 }
 
 func getObj(hc *auth.HandlerCtx, r events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {

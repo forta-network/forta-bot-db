@@ -87,7 +87,18 @@ functions:
       - httpApi:
           method: DELETE
           path: /database/{scope}/{key}
-
+      - httpApi:
+          method: POST
+          path: /database/{key}
+      - httpApi:
+          method: PUT
+          path: /database/{key}
+      - httpApi:
+          method: GET
+          path: /database/{key}
+      - httpApi:
+          method: DELETE
+          path: /database/{key}
 
 #    Define function environment variables here
 #    environment:
