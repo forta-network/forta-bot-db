@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"strings"
 
@@ -18,11 +19,32 @@ type HandlerCtx struct {
 	Ctx     context.Context
 	BotID   string
 	Scanner string
+	Key     string
+	Body    []byte
+	PathKey string
+	Scope   string
+	Method  string
 	Logger  *log.Entry
 	Store   store.S3
 }
 
-func extractContext(ctx context.Context, request events.APIGatewayV2HTTPRequest) (*HandlerCtx, error) {
+func parseBodyFromGateway(r events.APIGatewayV2HTTPRequest) ([]byte, error) {
+	if r.RequestContext.HTTP.Method != "post" && r.RequestContext.HTTP.Method != "put" {
+		return nil, nil
+	}
+	bodyStr := r.Body
+	b := []byte(bodyStr)
+	if r.IsBase64Encoded {
+		bs, err := base64.StdEncoding.DecodeString(bodyStr)
+		if err != nil {
+			return nil, err
+		}
+		b = bs
+	}
+	return b, nil
+}
+
+func extractGwContext(ctx context.Context, request events.APIGatewayV2HTTPRequest) (*HandlerCtx, error) {
 	// headers are lowercased via lambda
 	h, ok := request.Headers["authorization"]
 	if !ok {
@@ -43,11 +65,26 @@ func extractContext(ctx context.Context, request events.APIGatewayV2HTTPRequest)
 			if err != nil {
 				return nil, err
 			}
+			b, err := parseBodyFromGateway(request)
+			if err != nil {
+				return nil, err
+			}
+
+			pathKey, ok := request.PathParameters["key"]
+			if !ok {
+				return nil, errors.New("no key defined")
+			}
+			scope, _ := request.PathParameters["scope"]
+
 			return &HandlerCtx{
 				Ctx:     ctx,
 				BotID:   botId.(string),
 				Scanner: st.Scanner,
+				Method:  request.RequestContext.HTTP.Method,
 				Store:   s,
+				PathKey: pathKey,
+				Scope:   scope,
+				Body:    b,
 				Logger: log.WithFields(log.Fields{
 					"botId":   botId,
 					"scanner": st.Scanner,
@@ -60,31 +97,39 @@ func extractContext(ctx context.Context, request events.APIGatewayV2HTTPRequest)
 	return nil, errors.New("could not extract BotID")
 }
 
-func Authorize(ctx context.Context, request events.APIGatewayV2HTTPRequest) (*HandlerCtx, error) {
-	botCtx, err := extractContext(ctx, request)
+func authorize(botCtx *HandlerCtx) error {
+	r, err := registry.NewDefaultClient(botCtx.Ctx)
 	if err != nil {
-		return nil, err
-	}
-
-	r, err := registry.NewDefaultClient(ctx)
-	if err != nil {
-		return nil, err
+		return err
 	}
 
 	enabled, err := r.IsEnabledScanner(botCtx.Scanner)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if !enabled {
-		return nil, errors.New("scanner is not enabled")
+		return errors.New("scanner is not enabled")
 	}
 
 	assigned, err := r.IsAssigned(botCtx.Scanner, botCtx.BotID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if !assigned {
-		return nil, errors.New("botId is not assigned to scanner")
+		return errors.New("botId is not assigned to scanner")
+	}
+
+	return nil
+}
+
+func AuthorizeGWRequest(ctx context.Context, request events.APIGatewayV2HTTPRequest) (*HandlerCtx, error) {
+	botCtx, err := extractGwContext(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := authorize(botCtx); err != nil {
+		return nil, err
 	}
 
 	return botCtx, nil
