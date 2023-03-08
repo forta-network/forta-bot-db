@@ -74,6 +74,7 @@ functions:
         - ./bin/lambda
     environment:
       bucket: ${opt:stage}-forta-bot-db
+      POLYGON_JSON_RPC: ${ssm:POLYGON_JSON_RPC}
     events:
       - httpApi:
           method: POST

@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"os"
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
+	rd "github.com/forta-network/forta-core-go/domain/registry"
 	"github.com/forta-network/forta-core-go/registry"
 	"github.com/forta-network/forta-core-go/security"
 	"github.com/golang-jwt/jwt/v4"
@@ -111,8 +114,37 @@ type Authorizer struct {
 	r registry.Client
 }
 
+type ensStore struct{}
+
+func (es *ensStore) Resolve(input string) (common.Address, error) {
+	return common.HexToAddress("0x0"), nil
+}
+
+// ResolveRegistryContracts this helps with speed
+func (es *ensStore) ResolveRegistryContracts() (*rd.RegistryContracts, error) {
+	return &rd.RegistryContracts{
+		Dispatch:            common.HexToAddress("0xd46832f3f8ea8bdefe5316696c0364f01b31a573"),
+		AgentRegistry:       common.HexToAddress("0x61447385b019187daa48e91c55c02af1f1f3f863"),
+		ScannerRegistry:     common.HexToAddress("0xbf2920129f83d75dec95d97a879942cce3dcd387"),
+		ScannerPoolRegistry: common.HexToAddress("0x90ff9c193d6714e0e7a923b2bd481fb73fec731d"),
+		ScannerNodeVersion:  common.HexToAddress("0x4720c872425876b6f4b4e9130cdef667ade553b2"),
+		FortaStaking:        common.HexToAddress("0xd2863157539b1d11f39ce23fc4834b62082f6874"),
+		Forta:               common.HexToAddress("0x9ff62d1fc52a907b6dcba8077c2ddca6e6a9d3e1"),
+		Migration:           common.HexToAddress("0x1365fa3fe7f52db912dabc8e439f0843461fee16"),
+		Rewards:             common.HexToAddress("0xf7239f26b79145297737166b0c66f4919af9c507"),
+		StakeAllocator:      common.HexToAddress("0x5b73756e637a77fa52e5ce71ec6189a4c775c6fa"),
+	}, nil
+}
+
 func NewAuthorizer(ctx context.Context) (*Authorizer, error) {
-	r, err := registry.NewDefaultClient(ctx)
+	url := os.Getenv("POLYGON_JSON_RPC")
+	if url == "" {
+		url = "https://polygon-rpc.com"
+	}
+	r, err := registry.NewClientWithENSStore(ctx, registry.ClientConfig{
+		JsonRpcUrl: url,
+		NoRefresh:  true,
+	}, &ensStore{})
 	if err != nil {
 		return nil, err
 	}
