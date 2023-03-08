@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -22,40 +20,8 @@ import (
 
 var bucket = os.Getenv("bucket")
 
-const ScopeScanner = "scanner"
-const ScopeBot = "bot"
-
-const DefaultScope = ScopeScanner
-
-func getObjKey(hc *auth.HandlerCtx, r events.APIGatewayV2HTTPRequest) (string, error) {
-	pathKey, ok := r.PathParameters["key"]
-	if !ok {
-		return "", errors.New("no key defined")
-	}
-	scope, ok := r.PathParameters["scope"]
-	if !ok {
-		scope = DefaultScope
-	}
-
-	var key string
-	switch scope {
-	case ScopeScanner:
-		key = fmt.Sprintf("%s/%s/%s", hc.BotID, hc.Scanner, pathKey)
-	case ScopeBot:
-		key = fmt.Sprintf("%s/%s", hc.BotID, pathKey)
-	default:
-		return "", errors.New("scope must be scanner or bot")
-	}
-
-	hc.Logger = hc.Logger.WithFields(log.Fields{
-		"bucket": bucket,
-		"key":    key,
-	})
-	return key, nil
-}
-
-func getObj(hc *auth.HandlerCtx, r events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
-	key, err := getObjKey(hc, r)
+func getObj(hc *auth.HandlerCtx) (events.APIGatewayV2HTTPResponse, error) {
+	key, err := hc.GetObjectKey()
 	if err != nil {
 		return api.NotFound(), nil
 	}
@@ -72,7 +38,6 @@ func getObj(hc *auth.HandlerCtx, r events.APIGatewayV2HTTPRequest) (events.APIGa
 
 	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-
 		hc.Logger.WithError(err).Error("error reading body from object")
 		return api.InternalError(), nil
 	}
@@ -90,7 +55,7 @@ func putObj(hc *auth.HandlerCtx, r events.APIGatewayV2HTTPRequest) (events.APIGa
 		}
 		b = bs
 	}
-	key, err := getObjKey(hc, r)
+	key, err := hc.GetObjectKey()
 	if err != nil {
 		return api.NotFound(), nil
 	}
@@ -105,8 +70,8 @@ func putObj(hc *auth.HandlerCtx, r events.APIGatewayV2HTTPRequest) (events.APIGa
 	}
 	return api.OK(), nil
 }
-func delObj(hc *auth.HandlerCtx, r events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
-	key, err := getObjKey(hc, r)
+func delObj(hc *auth.HandlerCtx) (events.APIGatewayV2HTTPResponse, error) {
+	key, err := hc.GetObjectKey()
 	if err != nil {
 		return api.NotFound(), nil
 	}
@@ -124,13 +89,13 @@ func delObj(hc *auth.HandlerCtx, r events.APIGatewayV2HTTPRequest) (events.APIGa
 func route(hc *auth.HandlerCtx, r events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 	switch strings.ToLower(r.RequestContext.HTTP.Method) {
 	case "get":
-		return getObj(hc, r)
+		return getObj(hc)
 	case "put":
 		return putObj(hc, r)
 	case "post":
 		return putObj(hc, r)
 	case "delete":
-		return delObj(hc, r)
+		return delObj(hc)
 	default:
 		hc.Logger.Warn("method not allowed")
 		return api.MethodNotAllowed(), nil
@@ -147,7 +112,13 @@ func Handler(r events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse,
 		"method": r.RequestContext.HTTP.Method,
 	}).Info("request")
 
-	hc, err := auth.Authorize(ctx, r)
+	a, err := auth.NewAuthorizer(ctx)
+	if err != nil {
+		log.WithError(err).Error("error creating authorizer")
+		return api.InternalError(), nil
+	}
+
+	hc, err := a.Authorize(ctx, r)
 	if err != nil {
 		log.WithError(err).Error("unauthorized")
 		return api.Unauthorized(), nil
