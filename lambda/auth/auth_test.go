@@ -155,6 +155,34 @@ func TestAuthorize(t *testing.T) {
 				Error: testErr,
 			},
 		},
+		{
+			Given: given{
+				Scope:   "scanner",
+				Request: testReq("GET", testParams("scanner", testKey), authHeader),
+			},
+			When: when{
+				Token:    testToken(testBotID, testScanner),
+				Assigned: false,
+				Enabled:  true,
+			},
+			Expect: expect{
+				Error: ErrNotAssigned,
+			},
+		},
+		{
+			Given: given{
+				Scope:   "scanner",
+				Request: testReq("GET", testParams("scanner", testKey), authHeader),
+			},
+			When: when{
+				Token:    testToken(testBotID, testScanner),
+				Assigned: true,
+				Enabled:  false,
+			},
+			Expect: expect{
+				Error: ErrNotEnabled,
+			},
+		},
 	}
 	for _, test := range tests {
 		jwtVerifier = func(tokenString string) (*security.ScannerToken, error) {
@@ -195,6 +223,5 @@ func TestAuthorize(t *testing.T) {
 				assert.Error(t, err)
 			}
 		}
-
 	}
 }

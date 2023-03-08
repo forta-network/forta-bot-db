@@ -22,6 +22,10 @@ const ScopeBot Scope = "bot"
 const ScopeOwner Scope = "owner"
 const DefaultScope = ScopeScanner
 
+var ErrNotAssigned = errors.New("botId is not assigned to scanner")
+
+var ErrNotEnabled = errors.New("scanner is not enabled")
+
 type HandlerCtx struct {
 	Ctx     context.Context
 	BotID   string
@@ -126,7 +130,7 @@ func (a *Authorizer) Authorize(ctx context.Context, request events.APIGatewayV2H
 		return nil, err
 	}
 	if !enabled {
-		return nil, errors.New("scanner is not enabled")
+		return nil, ErrNotEnabled
 	}
 
 	assigned, err := a.r.IsAssigned(botCtx.Scanner, botCtx.BotID)
@@ -134,7 +138,7 @@ func (a *Authorizer) Authorize(ctx context.Context, request events.APIGatewayV2H
 		return nil, err
 	}
 	if !assigned {
-		return nil, errors.New("botId is not assigned to scanner")
+		return nil, ErrNotAssigned
 	}
 
 	if botCtx.Scope == ScopeOwner {
