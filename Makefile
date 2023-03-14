@@ -11,3 +11,4 @@ deploy-research: clean build
 
 mocks:
 	mockgen -source lambda/store/s3.go -destination lambda/store/mocks/mock_s3.go
+	mockgen -source lambda/store/dynamodb.go -destination lambda/store/mocks/mock_dynamodb.go

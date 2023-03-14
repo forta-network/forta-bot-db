@@ -4,16 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"os"
-	"strings"
-
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/ethereum/go-ethereum/common"
 	rd "github.com/forta-network/forta-core-go/domain/registry"
 	"github.com/forta-network/forta-core-go/registry"
 	"github.com/forta-network/forta-core-go/security"
 	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
+	"os"
+	"strings"
+	"time"
 
 	"forta-bot-db/store"
 )
@@ -29,20 +32,34 @@ var ErrNotAssigned = errors.New("botId is not assigned to scanner")
 
 var ErrNotEnabled = errors.New("scanner is not enabled")
 
+type CtxState struct {
+	AuthID    string `dynamodbav:"authId"`
+	BotID     string `dynamodbav:"botId"`
+	Scanner   string `dynamodbav:"scanner"`
+	Owner     string `dynamodbav:"owner"`
+	ExpiresAt int64  `dynamodbav:"expiresAt"`
+}
+
 type HandlerCtx struct {
-	Ctx     context.Context
-	BotID   string
-	Scanner string
-	Owner   string
-	PathKey string
-	Scope   Scope
-	Logger  *log.Entry
-	Store   store.S3
+	Ctx       context.Context
+	AuthID    string
+	BotID     string
+	Scanner   string
+	Owner     string
+	ExpiresAt int64
+	PathKey   string
+	Scope     Scope
+	Logger    *log.Entry
+	Store     store.S3
 }
 
 type JwtVerifier func(tokenString string) (*security.ScannerToken, error)
 
 var jwtVerifier JwtVerifier = security.VerifyScannerJWT
+
+func calculateAuthID(botID, scanner string) string {
+	return strings.ToLower(fmt.Sprintf("%s|%s", botID, scanner))
+}
 
 func (hc *HandlerCtx) GetObjectKey() (string, error) {
 	switch hc.Scope {
@@ -92,6 +109,7 @@ func extractContext(ctx context.Context, request events.APIGatewayV2HTTPRequest)
 				return nil, err
 			}
 			return &HandlerCtx{
+				AuthID:  calculateAuthID(botId.(string), st.Scanner),
 				Ctx:     ctx,
 				BotID:   botId.(string),
 				Scanner: st.Scanner,
@@ -111,7 +129,9 @@ func extractContext(ctx context.Context, request events.APIGatewayV2HTTPRequest)
 }
 
 type Authorizer struct {
-	r registry.Client
+	r     registry.Client
+	d     store.DynamoDB
+	table string
 }
 
 type ensStore struct{}
@@ -141,6 +161,11 @@ func NewAuthorizer(ctx context.Context) (*Authorizer, error) {
 	if url == "" {
 		url = "https://polygon-rpc.com"
 	}
+	table := os.Getenv("table")
+	if table == "" {
+		return nil, errors.New("table env var is required")
+	}
+
 	r, err := registry.NewClientWithENSStore(ctx, registry.ClientConfig{
 		JsonRpcUrl: url,
 		NoRefresh:  true,
@@ -148,7 +173,73 @@ func NewAuthorizer(ctx context.Context) (*Authorizer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Authorizer{r: r}, nil
+
+	d, err := store.NewDynamoDBClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &Authorizer{r: r, d: d, table: table}, nil
+}
+
+func (a *Authorizer) authorizeCtx(ctx context.Context, hc *HandlerCtx) error {
+	item, err := a.d.GetItem(ctx, &dynamodb.GetItemInput{
+		Key: map[string]types.AttributeValue{
+			"authId": &types.AttributeValueMemberS{Value: calculateAuthID(hc.BotID, hc.Scanner)},
+		},
+		TableName: &a.table,
+	})
+	if err != nil {
+		return err
+	}
+
+	if item != nil && item.Item != nil {
+		var saved CtxState
+		if err := attributevalue.UnmarshalMap(item.Item, &saved); err != nil {
+			return err
+		}
+		// copy over owner from one from jwt
+		hc.Owner = saved.Owner
+		return nil
+	}
+	enabled, err := a.r.IsEnabledScanner(hc.Scanner)
+	if err != nil {
+		return err
+	}
+	if !enabled {
+		return ErrNotEnabled
+	}
+
+	assigned, err := a.r.IsAssigned(hc.Scanner, hc.BotID)
+	if err != nil {
+		return err
+	}
+	if !assigned {
+		return ErrNotAssigned
+	}
+	if hc.Scope == ScopeOwner {
+		agt, err := a.r.GetAgent(hc.BotID)
+		if err != nil {
+			return err
+		}
+		hc.Owner = strings.ToLower(agt.Owner)
+	}
+
+	hcItem, err := attributevalue.MarshalMap(&CtxState{
+		AuthID:    hc.AuthID,
+		BotID:     hc.BotID,
+		Scanner:   hc.Scanner,
+		Owner:     hc.Owner,
+		ExpiresAt: time.Now().Add(1 * time.Hour).Unix(),
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = a.d.PutItem(ctx, &dynamodb.PutItemInput{
+		Item:      hcItem,
+		TableName: &a.table,
+	})
+	return err
 }
 
 func (a *Authorizer) Authorize(ctx context.Context, request events.APIGatewayV2HTTPRequest) (*HandlerCtx, error) {
@@ -157,28 +248,8 @@ func (a *Authorizer) Authorize(ctx context.Context, request events.APIGatewayV2H
 		return nil, err
 	}
 
-	enabled, err := a.r.IsEnabledScanner(botCtx.Scanner)
-	if err != nil {
+	if err := a.authorizeCtx(ctx, botCtx); err != nil {
 		return nil, err
-	}
-	if !enabled {
-		return nil, ErrNotEnabled
-	}
-
-	assigned, err := a.r.IsAssigned(botCtx.Scanner, botCtx.BotID)
-	if err != nil {
-		return nil, err
-	}
-	if !assigned {
-		return nil, ErrNotAssigned
-	}
-
-	if botCtx.Scope == ScopeOwner {
-		agt, err := a.r.GetAgent(botCtx.BotID)
-		if err != nil {
-			return nil, err
-		}
-		botCtx.Owner = strings.ToLower(agt.Owner)
 	}
 
 	return botCtx, nil

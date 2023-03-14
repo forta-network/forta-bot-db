@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	mock_store "forta-bot-db/store/mocks"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/forta-network/forta-core-go/registry"
 	mock_registry "github.com/forta-network/forta-core-go/registry/mocks"
@@ -188,12 +189,17 @@ func TestAuthorize(t *testing.T) {
 		jwtVerifier = func(tokenString string) (*security.ScannerToken, error) {
 			return test.When.Token, test.When.AuthErr
 		}
-		r := mock_registry.NewMockClient(gomock.NewController(t))
-		a := &Authorizer{
-			r: r,
-		}
+		ctrl := gomock.NewController(t)
+		r := mock_registry.NewMockClient(ctrl)
+		d := mock_store.NewMockDynamoDB(ctrl)
 
+		a := &Authorizer{
+			r:     r,
+			d:     d,
+			table: "table",
+		}
 		if test.When.AuthErr == nil {
+			d.EXPECT().GetItem(gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
 			r.EXPECT().IsEnabledScanner(gomock.Any()).Return(test.When.Enabled, nil).Times(1)
 			if test.When.Enabled {
 				r.EXPECT().IsAssigned(gomock.Any(), gomock.Any()).Return(test.When.Assigned, nil).Times(1)
@@ -202,6 +208,10 @@ func TestAuthorize(t *testing.T) {
 			if test.When.Assigned && test.Given.Scope == "owner" {
 				r.EXPECT().GetAgent(gomock.Any()).Return(test.When.Agent, nil).Times(1)
 			}
+		}
+
+		if test.Expect.HandlerCtx != nil {
+			d.EXPECT().PutItem(gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
 		}
 
 		hc, err := a.Authorize(context.Background(), test.Given.Request)

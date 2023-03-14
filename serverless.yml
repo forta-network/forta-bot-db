@@ -55,6 +55,11 @@ provider:
             - s3:PutObject
             - s3:DeleteObject
           Resource: arn:aws:s3:::${opt:stage}-forta-bot-db/*
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:GetItem
+          Resource: arn:aws:dynamodb:*:*:table/${opt:stage}-forta-bot-db-auth
 
 
 # you can define service wide environment variables here
@@ -74,6 +79,7 @@ functions:
         - ./bin/lambda
     environment:
       bucket: ${opt:stage}-forta-bot-db
+      table: ${opt:stage}-forta-bot-db-auth
       POLYGON_JSON_RPC: ${ssm:POLYGON_JSON_RPC}
     events:
       - httpApi:
@@ -112,4 +118,17 @@ resources:
       Type: AWS::S3::Bucket
       Properties:
         BucketName: ${opt:stage}-forta-bot-db
-
+    FortaAuthCache:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${opt:stage}-forta-bot-db-auth
+        AttributeDefinitions:
+          - AttributeName: authId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: authId
+            KeyType: HASH
+        TimeToLiveSpecification:
+          AttributeName: expiresAt
+          Enabled: true
+        BillingMode: PAY_PER_REQUEST
