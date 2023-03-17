@@ -14,6 +14,8 @@ https://docs.forta.network/en/latest/jwt-auth/
 ## Technique: Secrets Storage
 One technique is to only use this to store a configuration file that includes credentials to other services. This allows you to give your bot a hosted database, access to cloud services, or api keys.  This BOT DB is not meant for high-volume chatty reads/writes, but rather for periodic blob storage.   If you need large/frequent access, consider S3 or DynamoDB directly from your bot. 
 
+If you with to do this, you'll need to put your secret directly in S3 according to the key pattern described below.
+
 **Do not put highly sensitive secrets here.  It is always possible for your secrets to leak because Scanners are inherently untrusted environments**
 
 ## Setup
@@ -40,14 +42,33 @@ Valid scopes
 
 Files are stored in S3 under the following key format
 
+**All botIds, scannerIds, and owner addresses are Lowercase.**
+
 For `scanner` scope
 ```
+Pattern
 {scannerId}/{botId}/{key}
+
+Example
+0xabcdefabcdefabcdefabcdefabcdefabcdef/0xabcdefabcdefabcdefabcdefabcdefabcdef0xabcdefabcdefabcdefabcdefabcdefabcdef/cache.json
 ```
 
 For `bot` scope
 ```
+Pattern
 {botId}/{key}
+
+Example
+0xabcdefabcdefabcdefabcdefabcdefabcdef0xabcdefabcdefabcdefabcdefabcdefabcdef/object.gz
+```
+
+For `owner` scope
+```
+Pattern
+owner/{owner-address}/{key}
+
+Example
+owner/0xabcdefabcdefabcdefabcdefabcdefabcdef/secrets.json
 ```
 
 ## Deploy
