@@ -73,6 +73,10 @@ Example
 owner/0xabcdefabcdefabcdefabcdefabcdefabcdef/secrets.json
 ```
 
+## Configuration
+
+In the `serverless.yml` there is a reference to an AWS SSM parameter POLYGON_JSON_RPC.  You can set this to any polygon rpc you wish.  If you don't wish to use SSM, replace this value with whatever polygon json-rpc provider you wish to use.  If you remove this ENV reference entirely, the system will fall back to https://polygon-rpc.com, which can be rate limited.
+
 ## Deploy
 
 Make sure you have the right `--profile` referenced in Makefile's deploy target and in the serverless.yml.
