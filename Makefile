@@ -3,6 +3,9 @@
 build:
 	cd lambda && env GOOS=linux CGO_ENABLED=0 go build -ldflags="-s -w" -o ../bin/lambda handler.go && cd ..
 
+test:
+	cd lambda && go test ./... && cd ..
+
 clean:
 	rm -rf ./bin ./vendor Gopkg.lock
 

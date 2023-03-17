@@ -6,14 +6,18 @@ This allows a bot to store files over a HTTP request.
 - 10 MB file limit
 - This uses AWS API Gateway which has certain timeouts
 
-## Note:
+## Technique: Secrets Storage
 One technique is to only use this to store a configuration file that includes credentials to other services. This allows you to give your bot a hosted database, access to cloud services, or api keys.  This BOT DB is not meant for high-volume chatty reads/writes, but rather for periodic blob storage.   If you need large/frequent access, consider S3 or DynamoDB directly from your bot. 
+
+**Do not put highly sensitive secrets here.  It is always possible for your secrets to leak because Scanners are inherently untrusted environments**
 
 ## Setup
 1. Install Serverless: https://www.serverless.com/framework/docs/getting-started
 2. Install AWS CLI: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
 3. Setup AWS Credentials for Deployment (~/.aws/credentials)
 4. Modify the Makefile to use the apprpriate AWS Profile for your credentials (unless you use [default])
+
+If you would like a 
 
 ## APIs
 
@@ -50,7 +54,7 @@ https://docs.forta.network/en/latest/jwt-auth/
 
 ## Deploy
 
-Make sure you have the right `--profile` referenced in Makefile's deploy target
+Make sure you have the right `--profile` referenced in Makefile's deploy target and in the serverless.yml.
 
 ```
 make deploy

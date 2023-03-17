@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	mock_store "forta-bot-db/store/mocks"
+	"strings"
+	"testing"
+
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/forta-network/forta-core-go/registry"
 	mock_registry "github.com/forta-network/forta-core-go/registry/mocks"
@@ -12,8 +14,8 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"strings"
-	"testing"
+
+	mock_store "forta-bot-db/store/mocks"
 )
 
 const testOwner = "0x8eedD1358997A3B48406cD5335aE9438C28b4128"

@@ -21,7 +21,7 @@ frameworkVersion: ">=2.24.0"
 provider:
   name: aws
   runtime: go1.x
-  profile: forta-research
+  profile: forta-research # Set this to your desired aws profile
   architecture: x86_64
   httpApi:
     disableDefaultEndpoint: true
