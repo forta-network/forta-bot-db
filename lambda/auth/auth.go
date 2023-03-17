@@ -141,6 +141,7 @@ func (es *ensStore) Resolve(input string) (common.Address, error) {
 }
 
 // ResolveRegistryContracts this helps with speed
+// WARNING: this needs to be updated if the contract addresses change...this is just faster than resolving ENS
 func (es *ensStore) ResolveRegistryContracts() (*rd.RegistryContracts, error) {
 	return &rd.RegistryContracts{
 		Dispatch:            common.HexToAddress("0xd46832f3f8ea8bdefe5316696c0364f01b31a573"),
