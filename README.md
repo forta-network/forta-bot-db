@@ -22,8 +22,6 @@ One technique is to only use this to store a configuration file that includes cr
 3. Setup AWS Credentials for Deployment (~/.aws/credentials)
 4. Modify the Makefile to use the apprpriate AWS Profile for your credentials (unless you use [default])
 
-If you would like a 
-
 ## APIs
 
 These are the following APIs
