@@ -37,12 +37,12 @@ DELETE https://{host}/database/{scope}/{key}
 
 Valid scopes
 - `bot` means the bot can see the object regardless of scanner
-- `scanner` means only one scanner can see this object
+- `scanner` means only the same bot on this specific scanner can see this object
 - `owner` any bot owned by the same owner as the requesting bot can see the object
 
 ## S3 Storage 
 
-Files are stored in S3 under the following key format
+Files are stored in S3 under the following key format.  The logic injects the scoping prefixes from the JWT after it validates the JWT.
 
 **All botIds, scannerIds, and owner addresses are Lowercase.**
 
