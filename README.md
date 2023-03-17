@@ -1,6 +1,11 @@
 # forta-bot-db
 
-This allows a bot to store files over a HTTP request.  
+This allows a bot to store files over a HTTP request by validating the Scanner JWT.
+
+## Authentication
+
+Bots should use the JWT defined here, and this API will validate that.
+https://docs.forta.network/en/latest/jwt-auth/
 
 ## Limits:
 - 10 MB file limit
@@ -46,11 +51,6 @@ For `bot` scope
 ```
 {botId}/{key}
 ```
-
-## Authentication
-
-Bots should use the JWT defined here:
-https://docs.forta.network/en/latest/jwt-auth/
 
 ## Deploy
 
