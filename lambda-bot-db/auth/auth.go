@@ -75,7 +75,7 @@ func (hc *HandlerCtx) GetObjectKey() (string, error) {
 }
 
 func extractContext(ctx context.Context, request events.APIGatewayV2HTTPRequest) (*HandlerCtx, error) {
-	// headers are lowercased via lambda
+	// headers are lowercased via lambda-bot-db
 	h, ok := request.Headers["authorization"]
 	if !ok {
 		return nil, errors.New("no Authorization header")

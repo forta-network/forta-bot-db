@@ -73,10 +73,10 @@ package:
 
 functions:
   handler:
-    handler: bin/lambda
+    handler: bin/lambda-bot-db
     package:
       include:
-        - ./bin/lambda
+        - ./bin/lambda-bot-db
     environment:
       bucket: ${opt:stage}-forta-bot-db
       table: ${opt:stage}-forta-bot-db-auth
